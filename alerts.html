@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bamu — Alerts</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/css/bamu.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-name">Bamu</div>
+        <div class="brand-tagline">Vehicle Tracking</div>
+      </div>
+      <div class="sidebar-greeting">
+        Welcome back,
+        <strong id="sidebar-user-name">—</strong>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="./dashboard.html">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </a>
+        <a href="./map.html">
+          <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+          Live Map
+        </a>
+        <a href="./trips.html">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Trips
+        </a>
+        <a href="./alerts.html" class="active">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          Alerts
+          <span id="alerts-nav-badge" class="nav-badge" style="display:none">0</span>
+        </a>
+        <a href="./profile.html">
+          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Profile
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="logout-btn">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h1>Alerts</h1>
+          <p>Notifications about your vehicle</p>
+        </div>
+        <button id="mark-all-btn" class="btn btn-secondary btn-sm">Mark All as Read</button>
+      </div>
+      <div id="alerts-list" class="alerts-list"></div>
+    </main>
+  </div>
+
+  <script type="module">
+    import './src/js/auth.js';
+    import { getSession, getAlertsByVehicle, getVehicleById, markAlertReadCustomer } from './src/js/storage.js';
+
+    const TYPE_CONFIG = {
+      'hijack-zone': { icon: '🚨', label: 'Hijack Zone', iconClass: 'hijack-zone' },
+      'speeding': { icon: '⚡', label: 'Speeding', iconClass: 'speeding' },
+      'stolen-zone': { icon: '🔶', label: 'Recovery Zone', iconClass: 'stolen-zone' },
+      'geofence': { icon: '📍', label: 'Geofence', iconClass: 'geofence' },
+      'offline': { icon: '📡', label: 'Offline', iconClass: 'offline' },
+    };
+
+    function formatRelativeTime(iso) {
+      if (!iso) return '—';
+      const diff = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'Just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      return `${days}d ago`;
+    }
+
+    function renderAlerts() {
+      const session = JSON.parse(localStorage.getItem('bamu_session') || 'null');
+      if (!session) return;
+
+      const vehicle = getVehicleById(session.vehicleId);
+      const alerts = vehicle ? getAlertsByVehicle(vehicle.id) : [];
+
+      // Sort: unread first, then newest
+      alerts.sort((a, b) => {
+        if (!a.read && b.read) return -1;
+        if (a.read && !b.read) return 1;
+        return new Date(b.timestamp) - new Date(a.timestamp);
+      });
+
+      const list = document.getElementById('alerts-list');
+      const unreadCount = alerts.filter(a => !a.read).length;
+
+      // Update nav badge
+      const badge = document.getElementById('alerts-nav-badge');
+      if (badge) {
+        badge.textContent = unreadCount;
+        badge.style.display = unreadCount > 0 ? 'inline-flex' : 'none';
+      }
+
+      if (alerts.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <h3>No alerts</h3>
+            <p>You're all clear. No alerts for your vehicle.</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = alerts.map(alert => {
+        const cfg = TYPE_CONFIG[alert.type] || { icon: '🔔', label: alert.type, iconClass: 'geofence' };
+        return `
+          <div class="alert-item ${alert.read ? 'read' : 'unread'} type-${alert.type}" id="alert-${alert.id}">
+            <div class="alert-icon ${cfg.iconClass}">${cfg.icon}</div>
+            <div class="alert-body">
+              <div class="alert-message">${alert.message}</div>
+              <div class="alert-meta">
+                <span class="badge badge-${alert.type === 'hijack-zone' ? 'danger' : alert.type === 'speeding' ? 'warning' : alert.type === 'stolen-zone' ? 'warning' : 'info'}" style="font-size:11px;">${cfg.label}</span>
+                <span>${formatRelativeTime(alert.timestamp)}</span>
+                ${!alert.read ? '<span style="color:var(--danger);font-weight:600;">● Unread</span>' : ''}
+              </div>
+            </div>
+            ${!alert.read ? `
+              <div class="alert-actions">
+                <button class="btn btn-ghost btn-sm mark-read-btn" data-id="${alert.id}">
+                  Mark read
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+      // Mark individual as read
+      list.querySelectorAll('.mark-read-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          markAlertReadCustomer(btn.dataset.id);
+          renderAlerts();
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderAlerts();
+
+      document.getElementById('mark-all-btn').addEventListener('click', () => {
+        const session = JSON.parse(localStorage.getItem('bamu_session') || 'null');
+        if (!session) return;
+        const vehicle = getVehicleById(session.vehicleId);
+        if (!vehicle) return;
+
+        const alerts = JSON.parse(localStorage.getItem('bamu_alerts') || '[]');
+        alerts.forEach(a => {
+          if (a.vehicleId === vehicle.id) a.read = true;
+        });
+        localStorage.setItem('bamu_alerts', JSON.stringify(alerts));
+        renderAlerts();
+      });
+
+      document.getElementById('logout-btn').addEventListener('click', () => {
+        localStorage.removeItem('bamu_session');
+        window.location.href = './index.html';
+      });
+    });
+  </script>
+</body>
+</html>

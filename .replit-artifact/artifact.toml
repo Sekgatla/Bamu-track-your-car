@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Bamu — Track Your Car"
+version = "1.0.0"
+id = "artifacts/bamu-customer"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23894
+
+[services.development]
+run = "pnpm --filter @workspace/bamu-customer run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/bamu-customer", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/bamu-customer/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23894"
+BASE_PATH = "/"

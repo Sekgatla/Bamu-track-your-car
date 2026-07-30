@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bamu — Live Map</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/css/bamu.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    .app-shell { height: 100vh; overflow: hidden; }
+    .main-content { padding: 0; display: flex; flex-direction: column; }
+    #map { flex: 1; width: 100%; min-height: 0; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-name">Bamu</div>
+        <div class="brand-tagline">Vehicle Tracking</div>
+      </div>
+      <div class="sidebar-greeting">
+        Welcome back,
+        <strong id="sidebar-user-name">—</strong>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="./dashboard.html">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </a>
+        <a href="./map.html" class="active">
+          <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+          Live Map
+        </a>
+        <a href="./trips.html">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Trips
+        </a>
+        <a href="./alerts.html">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          Alerts
+          <span id="alerts-nav-badge" class="nav-badge" style="display:none">0</span>
+        </a>
+        <a href="./profile.html">
+          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Profile
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="logout-btn">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAP -->
+    <main class="main-content">
+      <div id="map"></div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module">
+    import './src/js/auth.js';
+    import { getSession, getVehicleById, getTrackerById } from './src/js/storage.js';
+
+    const HIJACK_ZONES = [
+      { name: 'Diepsloot', coords: [-25.9344, 28.0147], radius: 2000 },
+      { name: 'Alexandra Township', coords: [-26.1053, 28.1053], radius: 1500 },
+      { name: 'Hillbrow', coords: [-26.1926, 28.0470], radius: 1000 },
+      { name: 'Johannesburg CBD', coords: [-26.2041, 28.0473], radius: 1800 },
+      { name: 'Soweto Corridor', coords: [-26.2672, 27.8584], radius: 2500 },
+    ];
+
+    const STOLEN_ZONES = [
+      { name: 'Pretoria West Recovery Zone', coords: [-25.7463, 28.1883], radius: 2200 },
+      { name: 'East Rand Recovery Zone', coords: [-26.2305, 28.2205], radius: 2800 },
+      { name: 'Krugersdorp Area', coords: [-26.0991, 27.7673], radius: 1800 },
+    ];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = JSON.parse(localStorage.getItem('bamu_session') || 'null');
+      if (!session) return;
+
+      const vehicle = getVehicleById(session.vehicleId);
+      const tracker = vehicle?.trackerId ? getTrackerById(vehicle.trackerId) : null;
+
+      const defaultLat = vehicle?.lat || -26.2041;
+      const defaultLng = vehicle?.lng || 28.0473;
+
+      const map = L.map('map').setView([defaultLat, defaultLng], 12);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map);
+
+      // Hijacking zones
+      HIJACK_ZONES.forEach(zone => {
+        L.circle(zone.coords, {
+          radius: zone.radius,
+          color: '#DC2626',
+          fillColor: '#DC2626',
+          fillOpacity: 0.15,
+          weight: 2,
+        }).addTo(map).bindPopup(`<b>⚠️ Hijacking Hotspot</b><br>${zone.name}`);
+      });
+
+      // Stolen zones
+      STOLEN_ZONES.forEach(zone => {
+        L.circle(zone.coords, {
+          radius: zone.radius,
+          color: '#D97706',
+          fillColor: '#F59E0B',
+          fillOpacity: 0.12,
+          weight: 2,
+        }).addTo(map).bindPopup(`<b>🔶 Recovery Zone</b><br>${zone.name}`);
+      });
+
+      // Vehicle marker with pulsing icon
+      if (vehicle) {
+        const pulseHtml = `
+          <div style="position:relative;width:22px;height:22px;">
+            <div style="
+              position:absolute;top:0;left:0;
+              width:22px;height:22px;
+              border-radius:50%;
+              background:#0284C7;
+              opacity:0.4;
+              animation:pulse-ring 1.8s ease-out infinite;
+            "></div>
+            <div style="
+              position:absolute;top:3px;left:3px;
+              width:16px;height:16px;
+              border-radius:50%;
+              background:#0284C7;
+              border:3px solid white;
+              box-shadow:0 0 0 2px #0284C7;
+              z-index:2;
+            "></div>
+          </div>
+        `;
+
+        const style = document.createElement('style');
+        style.textContent = `@keyframes pulse-ring { 0%{transform:scale(0.8);opacity:0.9} 100%{transform:scale(2.8);opacity:0} }`;
+        document.head.appendChild(style);
+
+        const vehicleIcon = L.divIcon({
+          html: pulseHtml,
+          className: '',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+        });
+
+        const statusColors = { parked: '#059669', moving: '#0284C7', alert: '#DC2626', offline: '#9CA3AF' };
+        const statusColor = statusColors[vehicle.status] || '#0284C7';
+
+        L.marker([vehicle.lat, vehicle.lng], { icon: vehicleIcon })
+          .addTo(map)
+          .bindPopup(`
+            <div style="font-family:Inter,sans-serif;min-width:180px;">
+              <b style="font-size:15px;">${vehicle.make} ${vehicle.model}</b><br>
+              <span style="color:#475569;font-size:13px;">${vehicle.plate}</span><br><br>
+              <span style="background:${statusColor};color:white;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;">
+                ${vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1)}
+              </span><br><br>
+              <table style="font-size:13px;width:100%;">
+                <tr><td style="color:#475569">Speed</td><td style="font-weight:600">${vehicle.speed} km/h</td></tr>
+                <tr><td style="color:#475569">Battery</td><td style="font-weight:600">${vehicle.battery}%</td></tr>
+                ${tracker ? `<tr><td style="color:#475569">Tracker</td><td style="font-weight:600;font-family:monospace">${tracker.serialNumber}</td></tr>` : ''}
+              </table>
+            </div>
+          `)
+          .openPopup();
+      }
+
+      // Legend
+      const legend = L.control({ position: 'bottomright' });
+      legend.onAdd = () => {
+        const div = L.DomUtil.create('div', 'map-legend');
+        div.innerHTML = `
+          <h4>Map Legend</h4>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#0284C7;border-color:#0284C7;"></div>
+            Your Vehicle
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:rgba(220,38,38,0.3);border-color:#DC2626;border-radius:0;width:14px;height:14px;"></div>
+            Hijacking Zone
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:rgba(245,158,11,0.25);border-color:#D97706;border-radius:0;width:14px;height:14px;"></div>
+            Recovery Zone
+          </div>
+        `;
+        return div;
+      };
+      legend.addTo(map);
+
+      // Logout
+      document.getElementById('logout-btn').addEventListener('click', () => {
+        localStorage.removeItem('bamu_session');
+        window.location.href = './index.html';
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bamu — Login</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/css/bamu.css">
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <div class="logo-name">Bamu</div>
+        <div class="logo-subtitle">Track Your Vehicle</div>
+      </div>
+
+      <div id="login-error" class="login-error" role="alert">
+        Account not found or wrong password. Contact your Bamu provider.
+      </div>
+
+      <form id="login-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input
+            type="email"
+            id="email"
+            class="form-input"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            class="form-input"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+        <button type="submit" class="login-btn">Sign In</button>
+      </form>
+
+      <p style="margin-top:20px;text-align:center;font-size:13px;color:var(--text-muted);">
+        Don't have an account? Contact your Bamu provider.
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { findCustomerByEmail, setSession, getSession } from './src/js/storage.js';
+
+    // If already logged in, go to dashboard
+    const existing = getSession();
+    if (existing && existing.customerId) {
+      window.location.href = './dashboard.html';
+    }
+
+    const form = document.getElementById('login-form');
+    const errorEl = document.getElementById('login-error');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      const customer = findCustomerByEmail(email);
+
+      if (!customer || customer.password !== password) {
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      errorEl.classList.remove('visible');
+
+      setSession({
+        customerId: customer.id,
+        name: customer.name,
+        email: customer.email,
+        vehicleId: customer.vehicleId,
+      });
+
+      window.location.href = './dashboard.html';
+    });
+
+    form.addEventListener('input', () => {
+      errorEl.classList.remove('visible');
+    });
+  </script>
+</body>
+</html>
