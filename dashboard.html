@@ -9,6 +9,54 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./src/css/bamu.css">
+  <style>
+    /* Engine Cut Banner */
+    .engine-cut-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #FEF2F2;
+      border: 2px solid #FECACA;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+    .engine-cut-icon {
+      width: 42px;
+      height: 42px;
+      background: #DC2626;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .engine-cut-icon svg { stroke: #fff; }
+    .engine-cut-text h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #991B1B;
+      margin: 0 0 3px;
+    }
+    .engine-cut-text p {
+      font-size: 13px;
+      color: #B91C1C;
+      margin: 0;
+    }
+    .engine-cut-pulse {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #DC2626;
+      border-radius: 50%;
+      animation: pulse-red 1.2s ease-in-out infinite;
+      margin-right: 6px;
+    }
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.3); }
+    }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -58,6 +106,22 @@
       <div class="page-header">
         <h1>Dashboard</h1>
         <p>Your vehicle status at a glance</p>
+      </div>
+
+      <!-- Engine Cut Banner (shown only when engine is cut) -->
+      <div id="engine-cut-banner" style="display:none;">
+        <div class="engine-cut-banner">
+          <div class="engine-cut-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+              <line x1="12" y1="2" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div class="engine-cut-text">
+            <h3><span class="engine-cut-pulse"></span>Engine Remotely Disabled</h3>
+            <p>Your vehicle engine has been remotely cut by your Bamu provider. Please contact Bamu support to restore engine power.</p>
+          </div>
+        </div>
       </div>
 
       <!-- Vehicle Status Card -->
@@ -115,6 +179,11 @@
 
       const statusSection = document.getElementById('vehicle-status-section');
       const bottomCards = document.getElementById('bottom-cards');
+
+      // ---- ENGINE CUT BANNER ----
+      if (tracker && tracker.canCutEngine && tracker.engineCutStatus === 'cut') {
+        document.getElementById('engine-cut-banner').style.display = 'block';
+      }
 
       if (!vehicle) {
         statusSection.innerHTML = `
@@ -202,14 +271,25 @@
               <div class="info-row">
                 <span class="label">Status</span>
                 <span class="value">
-                  <span class="badge ${tracker.status === 'active' ? 'badge-success' : tracker.status === 'offline' ? 'badge-muted' : 'badge-warning'}">
+                  <span class="badge ${tracker.status === 'active' || tracker.status === 'online' ? 'badge-success' : tracker.status === 'offline' ? 'badge-muted' : 'badge-warning'}">
                     ${tracker.status.charAt(0).toUpperCase() + tracker.status.slice(1)}
                   </span>
                 </span>
               </div>
+              ${tracker.canCutEngine ? `
+              <div class="info-row">
+                <span class="label">Engine</span>
+                <span class="value">
+                  ${tracker.engineCutStatus === 'cut'
+                    ? '<span class="badge badge-danger">🔴 Remotely Cut</span>'
+                    : '<span class="badge badge-success">🟢 Running</span>'
+                  }
+                </span>
+              </div>
+              ` : ''}
               <div class="info-row">
                 <span class="label">Battery</span>
-                <span class="value">${tracker.battery}%</span>
+                <span class="value">${tracker.battery != null ? tracker.battery + '%' : '⚡ Vehicle power'}</span>
               </div>
               <div class="info-row">
                 <span class="label">Last Ping</span>

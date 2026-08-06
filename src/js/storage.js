@@ -118,10 +118,10 @@ export function clearSession() {
   ];
 
   const trackers = [
-    { id: 't1', serialNumber: 'VO-2024-A001', brand: 'Vo', vehicleId: 'v1', status: 'active', battery: 87, lastPing: iso(now) },
-    { id: 't2', serialNumber: 'VO-2024-A002', brand: 'Vo', vehicleId: 'v2', status: 'active', battery: 64, lastPing: iso(now) },
-    { id: 't3', serialNumber: 'VO-2024-A003', brand: 'Vo', vehicleId: null, status: 'unassigned', battery: 100, lastPing: null },
-    { id: 't4', serialNumber: 'VO-2024-A004', brand: 'Vo', vehicleId: null, status: 'unassigned', battery: 100, lastPing: null },
+    { id: 't1', serialNumber: 'VO-2024-A001', brand: 'Vo', vehicleId: 'v1', status: 'active', battery: 87, lastPing: iso(now), canCutEngine: true, engineCutStatus: 'running' },
+    { id: 't2', serialNumber: 'VO-2024-A002', brand: 'Vo', vehicleId: 'v2', status: 'active', battery: 64, lastPing: iso(now), canCutEngine: false, engineCutStatus: 'running' },
+    { id: 't3', serialNumber: 'VO-2024-A003', brand: 'Vo', vehicleId: null, status: 'unassigned', battery: 100, lastPing: null, canCutEngine: false, engineCutStatus: 'running' },
+    { id: 't4', serialNumber: 'VO-2024-A004', brand: 'Vo', vehicleId: null, status: 'unassigned', battery: 100, lastPing: null, canCutEngine: false, engineCutStatus: 'running' },
   ];
 
   const alerts = [
